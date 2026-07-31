@@ -17,7 +17,7 @@
 
 namespace ninfer::serve {
 
-inline constexpr int kRequestLogSchemaVersion        = 6;
+inline constexpr int kRequestLogSchemaVersion        = 7;
 inline constexpr const char* kRequestLogArtifactType = "ninfer_serve_request_log";
 
 struct RequestLogContext {

@@ -82,6 +82,11 @@ The endpoint supports:
 - the `enable_thinking` extension (thinking on/off); and
 - the `preserve_thinking` extension (keep thinking blocks in prefix cache across user turns).
 
+`--tolerant-tool-calls` recovers a Qwen tool call only when the function name, every parameter,
+and the function close are complete but the outer wrapper or trailing suffix drifted. It never
+executes a call with an incomplete function or parameter; clients should retry those terminal
+outputs instead.
+
 The request `model` must equal the public model ID: the artifact `identity.model_id` by default, or
 the explicit `--model-id` override. Reasoning is returned separately as `reasoning_content`; answer
 text remains in `content`.

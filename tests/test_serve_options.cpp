@@ -47,6 +47,8 @@ int main() {
                       "Responses store defaults mismatch");
     failures += check(!defaults.model_id_override.has_value(),
                       "model id override is unexpectedly configured by default");
+    failures += check(!defaults.tolerant_tool_calls,
+                      "tolerant tool-call recovery is not disabled by default");
     failures += check(resolve_public_model_id(defaults, "artifact-model") == "artifact-model",
                       "artifact model id was not selected by default");
 
@@ -88,7 +90,8 @@ int main() {
     const ServeOptions configured =
         parse({"ninfer-serve", "model.ninfer", "--no-prefix-reuse", "--vision", "--max-concurrency",
                "4", "--max-pending-requests", "12", "--pending-timeout-ms", "2500", "--max-context",
-               "4096", "--kv-capacity", "8192", "--log-stats-interval-ms", "0"});
+               "4096", "--kv-capacity", "8192", "--log-stats-interval-ms", "0",
+               "--tolerant-tool-calls"});
     failures += check(!configured.allow_prefix_reuse,
                       "--no-prefix-reuse did not disable server prefix reuse");
     failures += check(configured.enable_vision, "--vision did not enable Vision");
@@ -104,6 +107,11 @@ int main() {
                       "--pending-timeout-ms did not reach serving options");
     failures += check(configured.log_stats_interval_ms == 0,
                       "--log-stats-interval-ms did not disable periodic reporting");
+    failures += check(configured.tolerant_tool_calls,
+                      "--tolerant-tool-calls did not enable recovery");
+    failures += check(serve_usage_text("ninfer-serve").find("--tolerant-tool-calls") !=
+                          std::string::npos,
+                      "serve help omits --tolerant-tool-calls");
 
     const ServeOptions response_store =
         parse({"ninfer-serve", "model.ninfer", "--response-store-max-records", "42",
