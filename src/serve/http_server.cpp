@@ -183,9 +183,11 @@ void HttpServer::stop_stats_reporter() {
     stats_thread_.join();
 }
 
-void HttpServer::register_routes() {
-    server_.set_error_handler([](const httplib::Request& req, httplib::Response& res) {
-        if (res.status != 413) { return; }
+void configure_http_error_handler(httplib::Server& server) {
+    server.set_error_handler([](const httplib::Request& req, httplib::Response& res) {
+        if (res.status != 413 || !res.body.empty()) {
+            return httplib::Server::HandlerResponse::Unhandled;
+        }
         ApiError error;
         error.status  = 413;
         error.type    = "invalid_request_error";
@@ -196,7 +198,12 @@ void HttpServer::register_routes() {
         } else {
             write_error(res, error);
         }
+        return httplib::Server::HandlerResponse::Handled;
     });
+}
+
+void HttpServer::register_routes() {
+    configure_http_error_handler(server_);
     if (options_.enable_cors) {
         server_.set_default_headers(
             {{"Access-Control-Allow-Origin", "*"},
