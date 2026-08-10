@@ -31,6 +31,8 @@ int main() {
     const ServeOptions defaults = parse({"ninfer-serve", "model.ninfer"});
     failures += check(defaults.allow_prefix_reuse, "prefix reuse is not enabled by default");
     failures += check(!defaults.enable_vision, "Vision is not disabled by default");
+    failures += check(defaults.max_prompt_images == kMaxPromptImagesHardLimit,
+                      "default prompt image cap changed");
     failures += check(defaults.request_log_jsonl.empty(),
                       "request JSONL logging is not disabled by default");
     failures += check(defaults.log_stats_interval_ms == 5000,
@@ -110,6 +112,18 @@ int main() {
                           response_store.response_store_max_bytes == (8ULL << 20),
                       "Responses store limits did not reach serving options");
 
+    const ServeOptions capped =
+        parse({"ninfer-serve", "model.ninfer", "--vision", "--max-prompt-images", "10"});
+    failures += check(capped.max_prompt_images == 10,
+                      "--max-prompt-images did not preserve the configured cap");
+    for (const char* invalid : {"0", "17"}) {
+        bool rejected = false;
+        try {
+            (void)parse({"ninfer-serve", "model.ninfer", "--max-prompt-images", invalid});
+        } catch (const std::invalid_argument&) { rejected = true; }
+        failures += check(rejected, "invalid --max-prompt-images value was accepted");
+    }
+
     GenerationRequest request;
     request.max_tokens = 1;
     failures += check(to_request_options(request, defaults).execution.allow_prefix_reuse,
@@ -146,6 +160,9 @@ int main() {
                           automatic.kv_capacity.automatic_headroom_bytes ==
                               ninfer::kDefaultKvCapacityHeadroomBytes,
                       "--kv-capacity auto did not select automatic sizing");
+    failures +=
+        check(serve_usage_text("ninfer-serve").find("--max-prompt-images") != std::string::npos,
+              "serve help omits --max-prompt-images");
 
     const ServeOptions logged = parse({"ninfer-serve", "model.ninfer", "--request-log-jsonl",
                                        "requests.jsonl", "--api-key", "do-not-log"});

@@ -1,15 +1,20 @@
 #include "serve/translate.h"
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace ninfer::serve {
 namespace {
+
+constexpr std::string_view kOmittedImageMarker =
+    "[Historical image omitted by server prompt image cap.]";
 
 std::uint64_t random_seed() {
     static thread_local std::mt19937_64 rng(std::random_device{}());
@@ -87,10 +92,31 @@ std::string normalized_role(const std::string& role) {
     throw ApiException(std::move(error));
 }
 
+void append_text_part(ninfer::ChatMessage& message, std::string text) {
+    if (!message.parts.empty() && !text.empty() &&
+        message.parts.back().kind == ninfer::MessagePartKind::Text) {
+        ninfer::MessagePart newline;
+        newline.text = "\n";
+        message.parts.push_back(std::move(newline));
+    }
+    ninfer::MessagePart part;
+    part.text = std::move(text);
+    message.parts.push_back(std::move(part));
+}
+
 } // namespace
 
 ninfer::PromptInput to_prompt_input(const GenerationRequest& request, const ServeOptions& server,
                                     const MediaAcquirer& acquire_media) {
+    std::size_t image_count = 0;
+    for (const ChatTurn& turn : request.messages) {
+        for (const ContentPart& part : turn.content) {
+            if (part.kind == ContentKind::Image) { ++image_count; }
+        }
+    }
+    std::size_t images_to_omit =
+        image_count > server.max_prompt_images ? image_count - server.max_prompt_images : 0;
+
     ninfer::PromptInput input;
     input.messages.reserve(request.messages.size());
     for (const ChatTurn& turn : request.messages) {
@@ -105,15 +131,12 @@ ninfer::PromptInput to_prompt_input(const GenerationRequest& request, const Serv
 
         for (const ContentPart& part : turn.content) {
             if (part.kind == ContentKind::Text) {
-                if (!message.parts.empty() && !part.text.empty() &&
-                    message.parts.back().kind == ninfer::MessagePartKind::Text) {
-                    ninfer::MessagePart newline;
-                    newline.text = "\n";
-                    message.parts.push_back(std::move(newline));
-                }
-                ninfer::MessagePart text;
-                text.text = part.text;
-                message.parts.push_back(std::move(text));
+                append_text_part(message, part.text);
+                continue;
+            }
+            if (part.kind == ContentKind::Image && images_to_omit != 0) {
+                append_text_part(message, std::string(kOmittedImageMarker));
+                --images_to_omit;
                 continue;
             }
             if (part.kind == ContentKind::Image || part.kind == ContentKind::Video) {
