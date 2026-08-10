@@ -144,6 +144,40 @@ int test_parse_media_in_translate() {
     return failures;
 }
 
+int test_prompt_image_cap_keeps_newest() {
+    GenerationRequest request;
+    ChatTurn turn;
+    turn.role = "user";
+    for (const char* id : {"first", "second", "third"}) {
+        ContentPart image;
+        image.kind         = ContentKind::Image;
+        image.source.value = id;
+        turn.content.push_back(std::move(image));
+    }
+    request.messages.push_back(std::move(turn));
+
+    ServeOptions server;
+    server.max_prompt_images = 2;
+    std::vector<std::string> acquired;
+    const ninfer::PromptInput prompt = to_prompt_input(
+        request, server, [&](const ContentPart& part) {
+            acquired.push_back(part.source.value);
+            return fake_media(part);
+        });
+
+    int media_parts = 0;
+    for (const ninfer::MessagePart& part : prompt.messages[0].parts) {
+        if (part.kind == ninfer::MessagePartKind::Media) { ++media_parts; }
+    }
+    int failures = check(acquired == std::vector<std::string>{"second", "third"},
+                         "prompt image cap did not retain the newest images");
+    failures += check(media_parts == 2, "prompt image cap retained the wrong media count");
+    failures += check(joined_text(prompt.messages[0]).find("Historical image omitted") !=
+                          std::string::npos,
+                      "prompt image cap omitted its history marker");
+    return failures;
+}
+
 int test_developer_role_mapped() {
     const Json body = {
         {"model", "m"},
@@ -540,6 +574,7 @@ int main() {
     failures += test_parse_parts_and_flatten();
     failures += test_developer_role_mapped();
     failures += test_parse_media_in_translate();
+    failures += test_prompt_image_cap_keeps_newest();
     failures += test_reject_unsupported();
     failures += test_parse_function_tools_and_choices();
     failures += test_parse_tool_history_messages();

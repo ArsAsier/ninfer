@@ -60,7 +60,7 @@ std::string serve_usage_text(const char* argv0) {
            "[--max-request-mib N] [--request-log-jsonl FILE] "
            "[--kv-dtype bf16|int8] [--spec mtp|dflash --draft-tokens N] "
            "[--default-max-tokens N] "
-           "[--vision] [--no-cuda-graph] [--no-prefix-reuse] "
+           "[--vision] [--max-prompt-images N] [--no-cuda-graph] [--no-prefix-reuse] "
            "[--lm-head-draft] [--no-thinking] [--cors] "
            "[--temperature F] [--top-p F] [--top-k N] [--presence-penalty F] "
            "[--frequency-penalty F] [--seed N] [--greedy]\n"
@@ -71,6 +71,7 @@ std::string serve_usage_text(const char* argv0) {
            "       --max-request-mib defaults to 384 and is enforced before JSON parsing\n"
            "       --request-log-jsonl appends full-precision server/request records\n"
            "       --vision enables media and loads the fixed Vision GPU allocations\n"
+           "       --max-prompt-images keeps the newest N images (1..16; default 16)\n"
            "       --no-prefix-reuse disables compatible-prefix caching (enabled by default)\n"
            "       sampler defaults to Qwen3 thinking (temperature 0.6, top-p 0.95, "
            "top-k 20, presence-penalty 1.0); a request may override any field.\n"
@@ -145,6 +146,13 @@ ServeOptions parse_serve_options(int argc, char** argv) {
             default_max_tokens_explicit = true;
         } else if (arg == "--vision") {
             options.enable_vision = true;
+        } else if (arg == "--max-prompt-images") {
+            const int value =
+                parse_nonnegative_int(require_value("--max-prompt-images"), "max-prompt-images");
+            if (value <= 0 || static_cast<std::size_t>(value) > kMaxPromptImagesHardLimit) {
+                throw std::invalid_argument("--max-prompt-images must be in [1,16]");
+            }
+            options.max_prompt_images = static_cast<std::size_t>(value);
         } else if (arg == "--no-cuda-graph") {
             options.use_cuda_graph = false;
         } else if (arg == "--no-prefix-reuse") {

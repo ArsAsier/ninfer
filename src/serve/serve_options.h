@@ -12,8 +12,9 @@ namespace ninfer::serve {
 
 // Protocol default when the client omits max_tokens. Engine independently
 // clamps the request to its effective context capacity.
-inline constexpr int kDefaultMaxTokens               = 8192;
-inline constexpr std::size_t kDefaultMaxRequestBytes = 384ULL << 20;
+inline constexpr int kDefaultMaxTokens                      = 8192;
+inline constexpr std::size_t kDefaultMaxRequestBytes        = 384ULL << 20;
+inline constexpr std::size_t kMaxPromptImagesHardLimit       = 16;
 
 struct ServeOptions {
     bool help_requested = false;
@@ -29,9 +30,10 @@ struct ServeOptions {
     int device                    = 0;
     KvCacheStorage kv_cache       = KvCacheStorage::BFloat16;
     SpeculativeOptions speculative;
-    bool enable_vision      = false;
-    bool use_cuda_graph     = true;
-    bool allow_prefix_reuse = true;
+    bool enable_vision            = false;
+    std::size_t max_prompt_images = kMaxPromptImagesHardLimit;
+    bool use_cuda_graph           = true;
+    bool allow_prefix_reuse       = true;
     bool enable_thinking =
         true; // default thinking mode for the generation prompt (--no-thinking opts out)
     int default_max_tokens = kDefaultMaxTokens;
