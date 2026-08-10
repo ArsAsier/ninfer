@@ -140,6 +140,8 @@ ninfer_add_test(ninfer_serve_options_test
 ninfer_add_test(ninfer_http_error_handler_test
   SOURCES test_http_error_handler.cpp
   LIBRARIES ninfer_serve)
+target_include_directories(ninfer_http_error_handler_test PRIVATE
+  ${PROJECT_SOURCE_DIR}/third_party/cpp-httplib)
 ninfer_add_test(ninfer_request_log_test
   SOURCES test_request_log.cpp
   LIBRARIES ninfer_serve)
