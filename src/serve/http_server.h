@@ -13,6 +13,10 @@
 
 namespace ninfer::serve {
 
+// Installs the transport-level error renderer used by the product server. Application handlers
+// may already have rendered a structured 4xx/5xx response; those responses must remain untouched.
+void configure_http_error_handler(httplib::Server& server);
+
 class HttpServer {
 public:
     explicit HttpServer(ServeOptions options);

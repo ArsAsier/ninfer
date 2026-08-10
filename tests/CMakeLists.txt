@@ -137,6 +137,9 @@ ninfer_add_test(ninfer_tool_call_parser_test
 ninfer_add_test(ninfer_serve_options_test
   SOURCES test_serve_options.cpp
   LIBRARIES ninfer_serve)
+ninfer_add_test(ninfer_http_error_handler_test
+  SOURCES test_http_error_handler.cpp
+  LIBRARIES ninfer_serve)
 ninfer_add_test(ninfer_request_log_test
   SOURCES test_request_log.cpp
   LIBRARIES ninfer_serve)
