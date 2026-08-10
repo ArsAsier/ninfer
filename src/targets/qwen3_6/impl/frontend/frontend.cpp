@@ -841,7 +841,13 @@ PreparedPrompt Frontend::prepare(PromptInput input) const {
     auto prepared              = std::make_unique<PreparedPromptData>();
     PreparedPromptData& result = *prepared;
     if (has_media) {
-        fi::Processor processor(*impl_->tokenizer, impl_->processor);
+        // Text-only prompts are bounded by the Engine capacity after frontend preparation.
+        // Apply the same contract to multimodal prompts: media-specific patch, token, and
+        // attention budgets remain enforced by Processor, while total prompt length is owned by
+        // the configured Engine capacity rather than Processor's conservative standalone default.
+        fi::ProcessorOptions processor_options = impl_->processor;
+        processor_options.max_prompt_tokens    = std::numeric_limits<std::size_t>::max();
+        fi::Processor processor(*impl_->tokenizer, processor_options);
         fi::ProcessedInput processed;
         try {
             processed = processor.process(messages, render_options(options));

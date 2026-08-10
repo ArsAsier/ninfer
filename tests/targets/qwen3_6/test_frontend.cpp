@@ -576,6 +576,20 @@ int test_disabled_vision() {
     return failures;
 }
 
+int test_multimodal_prompt_uses_engine_capacity(const Frontend& frontend) {
+    ninfer::PromptInput input = image_input();
+    input.messages.front().parts.push_back(ninfer::MessagePart{
+        .kind = ninfer::MessagePartKind::Text, .text = std::string(33'000, 'x'), .media = {}});
+
+    const std::uint32_t counted = frontend.count_tokens(input);
+    const std::uint32_t prepared = frontend.prepare(std::move(input)).summary().prompt_tokens;
+    int failures = check(counted > 32'768,
+                         "multimodal capacity regression prompt did not exceed 32K tokens");
+    failures += check(prepared == counted,
+                      "multimodal prepare imposed a lower prompt limit than token counting");
+    return failures;
+}
+
 } // namespace
 
 int main() {
@@ -593,5 +607,6 @@ int main() {
     failures += test_reasoning_split(frontend);
     failures += test_utf8_and_hidden_eos(frontend);
     failures += test_disabled_vision();
+    failures += test_multimodal_prompt_uses_engine_capacity(frontend);
     return failures == 0 ? 0 : 1;
 }
